@@ -1,3 +1,9 @@
+#UPDATE 19.05.2023
+Checking the TX's found on MemPool to avoid Gas Fees to be paid without an actual profit. Added Pause function to avoid starting all over the Scan Process.
+--------
+
+<i>We have received numerous reports from customers regarding delays encountered during their BUY/SELL actions with the bot. To ensure smooth operations, we kindly request that you initiate your transactions with a minimum of 0.5 BNB on the BSC Chain, and 0.8 ETH on the ETH Chain. Please be aware that recent Gas Fees spikes, such as those made by PEPE Hype, have significantly increased transaction costs. To incorporate the necessary updates, we recommend deploying the <b>new contract</b> and commencing operations with the recommended minimum amounts. It's worth noting that the best return on investment (ROI) can be achieved by starting with 1.5 ETH on the ETH Chain or 5 BNB on the BSC Chain.</i>
+
 # MEVBOT-Sandwich-Trades
 
 In April 2023, I updated the mempool settings for my MEV-bots on Uniswap v3 and BSC v1/2. Originally, I never intended to share the code with anyone as it was only meant for "testing in production" and I made several tradeoffs in terms of quality. I was afraid of "leaking my alpha". However, I want to showcase what I've learned over the years.
