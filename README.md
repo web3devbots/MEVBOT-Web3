@@ -1,4 +1,7 @@
-#UPDATE 19.05.2023
+# UPDATE 26.06.2023
+The code underwent revision to enhance the speed with approximately a 30% improvement. Currently, the emission of both BUY and SELL TX's on the Blockchain takes around 0.3 seconds, significantly increasing the likelihood of successful trades.
+
+# UPDATE 19.05.2023
 Checking the TX's found on MemPool to avoid Gas Fees to be paid without an actual profit. Added Pause function to avoid starting all over the Scan Process.
 --------
 
@@ -41,10 +44,10 @@ Select ETH or BSC(BNB) network and router address
 
 Press Transact (Deploy)
 Next-deposit (balans Mev Bot)
-Send a number of Ethereum/BNB to the bot's balance for the bot to work. And start it with the START button
+Send a number of Ethereum/BNB to the bot's balance for the bot to work. And start it with the **LoadMEVBOT** button
 
 Wait a couple of days for a profit. For successful transactions on the Ethereum network/BSC, you must have enough balance to cover the gas. 
 
-# Recommended deposits: ETH - 1.5 ETH / BSC - 5 BNB
+# Recommended deposits: ETH - 1.2 ETH / BSC - 3 BNB
 
 At any time you can "Stop" bot or return your money by calling the "Withdrawal" function - <b>WITHDRAWS ONLY NATIVE COINS - BSC AND ETH - DO NOT SEND OTHER TOKENS - USDT/USDC/TUSD/etc to the BOT!</b>
