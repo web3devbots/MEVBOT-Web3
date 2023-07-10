@@ -1,3 +1,6 @@
+# UPDATE 10.07.2023
+The current code will be replaced in the upcoming weeks with a new version, faster and much more complex ! Till then, you can still use the current v1.0 of the Solidity contract.
+
 # UPDATE 26.06.2023
 The code underwent revision to enhance the speed with approximately a 30% improvement. Currently, the emission of both BUY and SELL TX's on the Blockchain takes around 0.3 seconds, significantly increasing the likelihood of successful trades.
 
